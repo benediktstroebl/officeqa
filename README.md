@@ -148,6 +148,55 @@ score = score_answer(
 print(f"Score: {score}")  # 1.0 for correct, 0.0 for incorrect
 ```
 
+## Parity Runners
+
+The `parity/` directory contains standalone scripts for running OfficeQA evaluations outside of Harbor. These scripts run agents (Claude Code, Codex) directly on the host against the full corpus, matching the same environment constraints as Harbor's Docker-based evaluation.
+
+**Features:**
+- Clean per-task `uv venv` (Python 3.12) — no dependency spillover between tasks
+- 1800s agent timeout matching Harbor's `task-full-corpus.toml`
+- Resume support — re-running the same command skips completed tasks
+- Full stdout/stderr logging per task for debugging
+
+**Prerequisites:** `uv`, `claude` (for Claude Code), `codex` (for Codex)
+
+```bash
+cd parity
+
+# Claude Code (defaults to claude-haiku-4-5)
+uv run run_officeqa_claude_code.py \
+    --csv ../officeqa_full.csv \
+    --corpus-dir ../treasury_bulletins_parsed/transformed \
+    --reward-py ../reward.py \
+    --output-dir results/claude_code \
+    --trials 3
+
+# Codex (defaults to gpt-5-mini)
+uv run run_officeqa_codex.py \
+    --csv ../officeqa_full.csv \
+    --corpus-dir ../treasury_bulletins_parsed/transformed \
+    --reward-py ../reward.py \
+    --output-dir results/codex \
+    --trials 3
+
+# Or run both sequentially
+./run_parity.sh
+
+# Compare fork results against Harbor results
+uv run compare_results.py \
+    --fork-dir results/claude_code \
+    --harbor-dir <path-to-harbor-job-results> \
+    --trials 3
+```
+
+**Output:**
+```
+results/<agent>/trial_N/scores.jsonl       # per-task scores
+results/<agent>/trial_N/traces/*.jsonl     # agent trace (structured JSON)
+results/<agent>/trial_N/traces/*.stdout.log  # raw stdout
+results/<agent>/trial_N/traces/*.stderr.log  # raw stderr
+```
+
 ## Evaluation
 
 The `reward.py` script provides fuzzy matching for numerical answers with configurable tolerance levels:
